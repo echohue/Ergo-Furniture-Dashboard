@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Sales Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0e1512;
+    --panel: #131b17;
+    --panel-2: #17211c;
+    --line: #2a352e;
+    --line-soft: #202b25;
+    --text: #ece9e0;
+    --text-dim: #93a49a;
+    --text-faint: #5f6f66;
+    --gold: #c9a227;
+    --gold-soft: #8a7326;
+    --green: #5fbe84;
+    --red: #d9694f;
+  }
+
+  * { box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
+  }
+
+  html, body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  ::selection{ background: var(--gold); color: #17211c; }
+
+  a { color: var(--gold); }
+
+  :focus-visible{
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .wrap{
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 40px 24px 64px;
+  }
+
+  /* ---------- Masthead ---------- */
+  .masthead{
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .masthead h1{
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-size: 34px;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    color: var(--text);
+  }
+  .masthead .sub{
+    color: var(--text-dim);
+    font-size: 13.5px;
+  }
+  .masthead .sub span.dot{
+    display:inline-block;
+    width:7px; height:7px;
+    border-radius:50%;
+    background: var(--text-faint);
+    margin-right:6px;
+    position:relative;
+    top:-1px;
+  }
+  .masthead .sub span.dot.live{ background: var(--green); }
+  .masthead .sub span.dot.err{ background: var(--red); }
+
+  .head-actions{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+  }
+
+  button.refresh{
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13.5px;
+    padding: 9px 16px;
+    border-radius: 2px;
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  button.refresh:hover{ border-color: var(--gold-soft); color: var(--gold); }
+  button.refresh svg{ width:14px; height:14px; }
+  button.refresh.spinning svg{ animation: spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  /* ---------- Filters ---------- */
+  .filters{
+    display:flex;
+    justify-content: space-between;
+    align-items:center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  .presets{ display:flex; gap: 2px; }
+  .presets button{
+    background:none;
+    border:none;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 13.5px;
+    padding: 7px 14px;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+  }
+  .presets button:hover{ color: var(--text); }
+  .presets button.active{
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+
+  .customdates{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .customdates input[type="date"]{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 2px;
+    color-scheme: dark;
+  }
+
+  /* ---------- Hero / summary ---------- */
+  .summary{
+    display:grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    border: 1px solid var(--line);
+    margin-bottom: 36px;
+  }
+  .summary .cell{
+    padding: 22px 24px;
+    border-right: 1px solid var(--line);
+  }
+  .summary .cell:last-child{ border-right:none; }
+  .summary .cell .label{
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+  .summary .cell .value{
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .summary .cell.hero .value{ color: var(--gold); font-size: 34px; }
+  .summary .cell .sub{
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: 6px;
+  }
+
+  @media (max-width: 720px){
+    .summary{ grid-template-columns: 1fr 1fr; }
+    .summary .cell{ border-bottom: 1px solid var(--line); }
+    .summary .cell:nth-child(2){ border-right:none; }
+  }
+
+  /* ---------- Section titles ---------- */
+  h2.section{
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 18px;
+    margin: 0 0 14px;
+    color: var(--text);
+  }
+
+  /* ---------- Leaderboard ---------- */
+  .board{ margin-bottom: 44px; }
+  table.board-table{
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.board-table thead th{
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-faint);
+    padding: 0 10px 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  table.board-table thead th.num{ text-align: right; }
+  table.board-table tbody td{
+    padding: 12px 10px 12px 0;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: middle;
+  }
+  table.board-table tbody tr:last-child td{ border-bottom: 1px solid var(--line); }
+  td.rank{
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-faint);
+    width: 30px;
+  }
+  td.name{ color: var(--text); font-weight: 500; }
+  td.count{
+    text-align:right;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    width: 70px;
+  }
+  td.amount{
+    text-align:right;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    width: 130px;
+  }
+  td.barcell{ width: 34%; min-width: 120px; }
+  .bar-track{
+    height: 8px;
+    background: var(--panel-2);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .bar-fill{
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-soft), var(--gold));
+  }
+
+  /* ---------- Recent entries ---------- */
+  .recent table{
+    width:100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .recent thead th{
+    text-align:left;
+    font-size: 12px;
+    color: var(--text-faint);
+    font-weight: 500;
+    padding: 0 10px 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .recent td{
+    padding: 9px 10px 9px 0;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .recent td.name{ color: var(--text); font-variant-numeric: normal; }
+  .recent td.amt{ text-align:right; color: var(--text); }
+
+  .tablewrap{ overflow-x: auto; }
+
+  /* ---------- States ---------- */
+  .banner{
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    margin-bottom: 30px;
+  }
+  .banner.error{ border-color: var(--red); color: var(--red); }
+  .banner code{
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--panel-2);
+    padding: 1px 5px;
+    border-radius: 2px;
+    color: var(--text);
+  }
+
+  .empty{
+    color: var(--text-faint);
+    font-size: 13.5px;
+    padding: 20px 0;
+  }
+
+  footer{
+    margin-top: 50px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--text-faint);
+    display:flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <h1>Agent sales ledger</h1>
+      <div class="sub"><span id="statusDot" class="dot"></span><span id="statusText">Connecting to sheet…</span></div>
+    </div>
+    <div class="head-actions">
+      <button class="refresh" id="refreshBtn" title="Re-fetch the latest rows from the sheet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v6h-6"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div id="errorBanner" class="banner error" style="display:none;"></div>
+
+  <div class="filters">
+    <div class="presets" id="presets">
+      <button data-preset="today">Today</button>
+      <button data-preset="7d">Last 7 days</button>
+      <button data-preset="month">This month</button>
+      <button data-preset="all" class="active">All time</button>
+    </div>
+    <div class="customdates">
+      From <input type="date" id="fromDate"> to <input type="date" id="toDate">
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="cell hero">
+      <div class="label">Total sales in range</div>
+      <div class="value" id="sumTotal">—</div>
+    </div>
+    <div class="cell">
+      <div class="label">Sales logged</div>
+      <div class="value" id="sumCount">—</div>
+    </div>
+    <div class="cell">
+      <div class="label">Active agents</div>
+      <div class="value" id="sumAgents">—</div>
+    </div>
+    <div class="cell">
+      <div class="label">Average sale</div>
+      <div class="value" id="sumAvg">—</div>
+    </div>
+  </div>
+
+  <div class="board">
+    <h2 class="section">Leaderboard</h2>
+    <div class="tablewrap">
+      <table class="board-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Agent</th>
+            <th class="num">Sales</th>
+            <th class="num">Total</th>
+            <th>Share</th>
+          </tr>
+        </thead>
+        <tbody id="boardBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="boardEmpty" style="display:none;">No sales recorded in this range.</div>
+  </div>
+
+  <div class="recent">
+    <h2 class="section">Recent entries</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Timestamp</th><th>Agent</th><th style="text-align:right;">Amount</th></tr>
+        </thead>
+        <tbody id="recentBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="recentEmpty" style="display:none;">Nothing to show yet.</div>
+  </div>
+
+  <footer>
+    <span>Source: <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTUl93HMGNK5kxvMK1Q4wV2pe7Cb3_7d_0O893HgSi90DiOx-QQMuNMjpSOUMl5vWjRmC74hON7NGWH/pubhtml?gid=351050674&single=true" target="_blank" rel="noopener">Google Sheet ↗</a></span>
+    <span id="syncedAt">Not yet synced</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var SHEET_ID = "2PACX-1vTUl93HMGNK5kxvMK1Q4wV2pe7Cb3_7d_0O893HgSi90DiOx-QQMuNMjpSOUMl5vWjRmC74hON7NGWH";
+  var GID = "351050674";
+  var CSV_URL = "https://docs.google.com/spreadsheets/d/e/" + SHEET_ID + "/pub?gid=" + GID + "&single=true&output=csv";
+
+  var state = {
+    rows: [],           // {date: Date, name: string, amount: number}
+    activePreset: "all",
+    from: null,
+    to: null
+  };
+
+  var els = {
+    statusDot: document.getElementById("statusDot"),
+    statusText: document.getElementById("statusText"),
+    refreshBtn: document.getElementById("refreshBtn"),
+    errorBanner: document.getElementById("errorBanner"),
+    presets: document.getElementById("presets"),
+    fromDate: document.getElementById("fromDate"),
+    toDate: document.getElementById("toDate"),
+    sumTotal: document.getElementById("sumTotal"),
+    sumCount: document.getElementById("sumCount"),
+    sumAgents: document.getElementById("sumAgents"),
+    sumAvg: document.getElementById("sumAvg"),
+    boardBody: document.getElementById("boardBody"),
+    boardEmpty: document.getElementById("boardEmpty"),
+    recentBody: document.getElementById("recentBody"),
+    recentEmpty: document.getElementById("recentEmpty"),
+    syncedAt: document.getElementById("syncedAt")
+  };
+
+  var currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+  var plainNum = new Intl.NumberFormat('en-IN');
+
+  function parseCSV(str){
+    var rows = [], row = [], field = '', inQuotes = false;
+    for (var i = 0; i < str.length; i++){
+      var c = str[i];
+      if (inQuotes){
+        if (c === '"'){
+          if (str[i+1] === '"'){ field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else if (c === '\r') { /* skip */ }
+        else field += c;
+      }
+    }
+    if (field.length || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(function(r){ return r.length > 1 || (r.length === 1 && r[0] !== ''); });
+  }
+
+  function findCol(headers, candidates){
+    for (var c = 0; c < candidates.length; c++){
+      for (var h = 0; h < headers.length; h++){
+        if (headers[h].trim().toLowerCase() === candidates[c]) return h;
+      }
+    }
+    // loose contains match fallback
+    for (var c2 = 0; c2 < candidates.length; c2++){
+      for (var h2 = 0; h2 < headers.length; h2++){
+        if (headers[h2].trim().toLowerCase().indexOf(candidates[c2]) !== -1) return h2;
+      }
+    }
+    return -1;
+  }
+
+  function parseAmount(str){
+    if (!str) return NaN;
+    var cleaned = String(str).replace(/[^0-9.\-]/g, '');
+    return cleaned === '' ? NaN : parseFloat(cleaned);
+  }
+
+  function parseTimestamp(str){
+    if (!str) return null;
+    var s = String(str).trim();
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+    // fallback: M/D/YYYY H:mm:ss
+    var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (m){
+      var yr = m[3].length === 2 ? '20' + m[3] : m[3];
+      d = new Date(yr, parseInt(m[1],10)-1, parseInt(m[2],10), parseInt(m[4],10), parseInt(m[5],10), m[6] ? parseInt(m[6],10) : 0);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return null;
+  }
+
+  function setStatus(mode, text){
+    els.statusDot.className = 'dot' + (mode === 'live' ? ' live' : mode === 'error' ? ' err' : '');
+    els.statusText.textContent = text;
+  }
+
+  function showError(msg){
+    els.errorBanner.style.display = 'block';
+    els.errorBanner.innerHTML = msg;
+  }
+  function hideError(){ els.errorBanner.style.display = 'none'; }
+
+  function fetchData(){
+    els.refreshBtn.classList.add('spinning');
+    setStatus('', 'Fetching latest rows…');
+    hideError();
+
+    var bustUrl = CSV_URL + '&_=' + Date.now();
+
+    fetch(bustUrl, { cache: 'no-store' })
+      .then(function(res){
+        if (!res.ok) throw new Error('Sheet responded with ' + res.status);
+        return res.text();
+      })
+      .then(function(text){
+        var table = parseCSV(text);
+        if (!table.length) throw new Error('The sheet came back empty.');
+
+        var headers = table[0];
+        var tsCol = findCol(headers, ['timestamp', 'time', 'date']);
+        var nameCol = findCol(headers, ['name of employee', 'employee', 'agent', 'name']);
+        var amtCol = findCol(headers, ['sale amount', 'amount', 'sale', 'sales']);
+
+        if (tsCol === -1 || nameCol === -1 || amtCol === -1){
+          throw new Error('Could not find the expected columns. Found headers: ' + headers.join(', '));
+        }
+
+        var rows = [];
+        for (var r = 1; r < table.length; r++){
+          var raw = table[r];
+          if (!raw || raw.every(function(v){ return v.trim() === ''; })) continue;
+          var name = (raw[nameCol] || '').trim();
+          var amount = parseAmount(raw[amtCol]);
+          var date = parseTimestamp(raw[tsCol]);
+          if (!name || isNaN(amount) || !date) continue;
+          rows.push({ date: date, name: name, amount: amount });
+        }
+
+        state.rows = rows;
+        setStatus('live', 'Live · connected to sheet');
+        els.syncedAt.textContent = 'Last synced ' + new Date().toLocaleTimeString();
+        applyPreset(state.activePreset, true);
+        render();
+      })
+      .catch(function(err){
+        setStatus('error', 'Could not reach the sheet');
+        showError('Refresh failed: <code>' + err.message + '</code>. Check that the sheet is still published to the web (File &rarr; Share &rarr; Publish to web), then hit Refresh again.');
+      })
+      .finally(function(){
+        els.refreshBtn.classList.remove('spinning');
+      });
+  }
+
+  function dateOnly(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+  function applyPreset(preset, silent){
+    state.activePreset = preset;
+    var now = new Date();
+    var from = null, to = null;
+
+    if (preset === 'today'){
+      from = dateOnly(now); to = dateOnly(now);
+    } else if (preset === '7d'){
+      to = dateOnly(now);
+      from = new Date(to); from.setDate(from.getDate() - 6);
+    } else if (preset === 'month'){
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      to = dateOnly(now);
+    } else if (preset === 'all'){
+      if (state.rows.length){
+        var dates = state.rows.map(function(r){ return r.date; });
+        from = dateOnly(new Date(Math.min.apply(null, dates)));
+        to = dateOnly(new Date(Math.max.apply(null, dates)));
+      }
+    }
+
+    state.from = from;
+    state.to = to;
+    if (from) els.fromDate.value = toInputDate(from);
+    if (to) els.toDate.value = toInputDate(to);
+
+    Array.prototype.forEach.call(els.presets.querySelectorAll('button'), function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-preset') === preset);
+    });
+
+    if (!silent) render();
+  }
+
+  function toInputDate(d){
+    var y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function getFilteredRows(){
+    if (!state.from || !state.to) return state.rows.slice();
+    var fromT = state.from.getTime();
+    var toT = new Date(state.to.getFullYear(), state.to.getMonth(), state.to.getDate(), 23, 59, 59, 999).getTime();
+    return state.rows.filter(function(r){
+      var t = r.date.getTime();
+      return t >= fromT && t <= toT;
+    });
+  }
+
+  function render(){
+    var filtered = getFilteredRows();
+
+    // summary
+    var total = 0;
+    var byAgent = {};
+    filtered.forEach(function(r){
+      total += r.amount;
+      if (!byAgent[r.name]) byAgent[r.name] = { name: r.name, total: 0, count: 0 };
+      byAgent[r.name].total += r.amount;
+      byAgent[r.name].count += 1;
+    });
+    var agents = Object.keys(byAgent).map(function(k){ return byAgent[k]; });
+    agents.sort(function(a,b){ return b.total - a.total; });
+
+    els.sumTotal.textContent = filtered.length ? currency.format(total) : '—';
+    els.sumCount.textContent = plainNum.format(filtered.length);
+    els.sumAgents.textContent = plainNum.format(agents.length);
+    els.sumAvg.textContent = filtered.length ? currency.format(total / filtered.length) : '—';
+
+    // leaderboard
+    els.boardBody.innerHTML = '';
+    els.boardEmpty.style.display = agents.length ? 'none' : 'block';
+    var maxTotal = agents.length ? agents[0].total : 0;
+    agents.forEach(function(a, i){
+      var tr = document.createElement('tr');
+      var pct = maxTotal ? Math.max(2, Math.round((a.total / maxTotal) * 100)) : 0;
+      tr.innerHTML =
+        '<td class="rank">' + (i+1) + '</td>' +
+        '<td class="name">' + escapeHtml(a.name) + '</td>' +
+        '<td class="count">' + plainNum.format(a.count) + '</td>' +
+        '<td class="amount">' + currency.format(a.total) + '</td>' +
+        '<td class="barcell"><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div></td>';
+      els.boardBody.appendChild(tr);
+    });
+
+    // recent entries (latest 12 within filtered range)
+    var recent = filtered.slice().sort(function(a,b){ return b.date - a.date; }).slice(0, 12);
+    els.recentBody.innerHTML = '';
+    els.recentEmpty.style.display = recent.length ? 'none' : 'block';
+    recent.forEach(function(r){
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + r.date.toLocaleString() + '</td>' +
+        '<td class="name">' + escapeHtml(r.name) + '</td>' +
+        '<td class="amt">' + currency.format(r.amount) + '</td>';
+      els.recentBody.appendChild(tr);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // events
+  els.refreshBtn.addEventListener('click', fetchData);
+  els.presets.addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-preset]');
+    if (!btn) return;
+    applyPreset(btn.getAttribute('data-preset'));
+  });
+  els.fromDate.addEventListener('change', function(){
+    state.from = new Date(els.fromDate.value + 'T00:00:00');
+    state.activePreset = 'custom';
+    Array.prototype.forEach.call(els.presets.querySelectorAll('button'), function(b){ b.classList.remove('active'); });
+    render();
+  });
+  els.toDate.addEventListener('change', function(){
+    state.to = new Date(els.toDate.value + 'T00:00:00');
+    state.activePreset = 'custom';
+    Array.prototype.forEach.call(els.presets.querySelectorAll('button'), function(b){ b.classList.remove('active'); });
+    render();
+  });
+
+  fetchData();
+})();
+</script>
+
+</body>
+</html>

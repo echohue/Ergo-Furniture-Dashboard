@@ -211,15 +211,16 @@
   /* ---------- Hero / summary ---------- */
   .summary{
     display:grid;
-    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
     border: 1px solid var(--line);
     margin-bottom: 40px;
   }
   .summary .cell{
+    background: var(--bg);
     padding: 22px 24px;
-    border-right: 1px solid var(--line);
   }
-  .summary .cell:last-child{ border-right:none; }
   .summary .cell .label{
     font-size: 12px;
     color: var(--text-faint);
@@ -241,8 +242,7 @@
 
   @media (max-width: 720px){
     .summary{ grid-template-columns: 1fr 1fr; }
-    .summary .cell{ border-bottom: 1px solid var(--line); }
-    .summary .cell:nth-child(2){ border-right:none; }
+    .summary .cell.hero{ grid-column: 1 / -1; }
   }
 
   /* ---------- Section titles ---------- */
@@ -418,6 +418,16 @@
       <div class="label">Average sale</div>
       <div class="value" id="sumAvg">—</div>
     </div>
+    <div class="cell">
+      <div class="label">B2C Orders</div>
+      <div class="value" id="sumB2C">—</div>
+      <div class="sub">Single chairs</div>
+    </div>
+    <div class="cell">
+      <div class="label">B2B Orders</div>
+      <div class="value" id="sumB2B">—</div>
+      <div class="sub">Multiple chairs</div>
+    </div>
   </div>
 
   <div class="section-block">
@@ -494,12 +504,13 @@
   var CSV_URL = "https://docs.google.com/spreadsheets/d/e/" + SHEET_ID + "/pub?gid=" + GID + "&single=true&output=csv";
 
   var state = {
-    rows: [],               // {date, name, amount, orderId, leadSource, product, note}
+    rows: [],               // {date, name, amount, orderId, leadSource, product, note, orderType}
     activePreset: "all",
     from: null,
     to: null,
     hasLeadSource: false,
     hasProduct: false,
+    hasOrderType: false,
     allLeadSources: [],
     selectedLeadSources: null // null = all selected
   };
@@ -520,6 +531,8 @@
     sumCount: document.getElementById("sumCount"),
     sumAgents: document.getElementById("sumAgents"),
     sumAvg: document.getElementById("sumAvg"),
+    sumB2C: document.getElementById("sumB2C"),
+    sumB2B: document.getElementById("sumB2B"),
     boardBody: document.getElementById("boardBody"),
     boardEmpty: document.getElementById("boardEmpty"),
     leadBody: document.getElementById("leadBody"),
@@ -589,6 +602,17 @@
     return null;
   }
 
+  // Maps the "B2B/B2C" column value to an order type.
+  // "Single Chairs"   -> B2C
+  // "Multiple Chairs" -> B2B
+  function classifyOrderType(val){
+    var v = String(val || '').trim().toLowerCase();
+    if (!v) return '';
+    if (v.indexOf('single') !== -1) return 'B2C';
+    if (v.indexOf('multiple') !== -1) return 'B2B';
+    return '';
+  }
+
   function setStatus(mode, text){
     els.statusDot.className = 'dot' + (mode === 'live' ? ' live' : mode === 'error' ? ' err' : '');
     els.statusText.textContent = text;
@@ -624,6 +648,7 @@
         var leadCol = findCol(headers, ['lead source', 'source', 'lead']);
         var productCol = findCol(headers, ['product name', 'product']);
         var noteCol = findCol(headers, ['note', 'notes', 'remarks']);
+        var typeCol = findCol(headers, ['b2b/b2c', 'b2b / b2c', 'b2b', 'b2c']);
 
         if (tsCol === -1 || nameCol === -1 || amtCol === -1){
           throw new Error('Could not find the expected columns. Found headers: ' + headers.join(', '));
@@ -631,6 +656,7 @@
 
         state.hasLeadSource = leadCol !== -1;
         state.hasProduct = productCol !== -1;
+        state.hasOrderType = typeCol !== -1;
 
         var rows = [];
         for (var r = 1; r < table.length; r++){
@@ -647,7 +673,8 @@
             orderId: orderCol !== -1 ? (raw[orderCol] || '').trim() : '',
             leadSource: leadCol !== -1 ? ((raw[leadCol] || '').trim() || 'Unspecified') : '',
             product: productCol !== -1 ? ((raw[productCol] || '').trim() || 'Unspecified') : '',
-            note: noteCol !== -1 ? (raw[noteCol] || '').trim() : ''
+            note: noteCol !== -1 ? (raw[noteCol] || '').trim() : '',
+            orderType: typeCol !== -1 ? classifyOrderType(raw[typeCol]) : ''
           });
         }
 
@@ -816,7 +843,12 @@
     var filtered = getFilteredRows();
 
     var total = 0;
-    filtered.forEach(function(r){ total += r.amount; });
+    var b2c = 0, b2b = 0;
+    filtered.forEach(function(r){
+      total += r.amount;
+      if (r.orderType === 'B2C') b2c++;
+      else if (r.orderType === 'B2B') b2b++;
+    });
 
     var byAgent = groupBy(filtered, function(r){ return r.name; });
 
@@ -824,6 +856,15 @@
     els.sumCount.textContent = plainNum.format(filtered.length);
     els.sumAgents.textContent = plainNum.format(byAgent.length);
     els.sumAvg.textContent = filtered.length ? currency.format(total / filtered.length) : '—';
+
+    // B2C / B2B order counts (from the "B2B/B2C" column)
+    if (state.hasOrderType){
+      els.sumB2C.textContent = plainNum.format(b2c);
+      els.sumB2B.textContent = plainNum.format(b2b);
+    } else {
+      els.sumB2C.textContent = '—';
+      els.sumB2B.textContent = '—';
+    }
 
     // leaderboard by agent
     els.boardBody.innerHTML = '';

@@ -315,6 +315,33 @@
   }
   .bar-fill.alt{ background: linear-gradient(90deg, #3d6f52, var(--green)); }
 
+  /* ---------- Agent x lead source matrix ---------- */
+  .matrix-note{ font-size: 12.5px; color: var(--text-faint); margin: -6px 0 14px; }
+  table.matrix{ min-width: 100%; width: auto; }
+  table.matrix thead th{ padding: 0 12px 10px 12px; white-space: nowrap; }
+  table.matrix thead th.mx-sticky{ padding-left: 0; }
+  table.matrix .mx-sticky{
+    position: sticky; left: 0; z-index: 2;
+    background: var(--bg);
+    min-width: 130px;
+    padding-left: 0;
+  }
+  table.matrix td.mx-cell{
+    text-align: right;
+    padding: 10px 12px;
+    white-space: nowrap;
+    border-left: 1px solid var(--line-soft);
+  }
+  .mx-main{ font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
+  .mx-orders{ font-size: 12.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .mx-pct{ font-size: 10.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  td.mx-empty{ color: var(--text-faint); }
+  td.mx-totalcol{ background: var(--panel); }
+  td.mx-totalrow{ background: var(--panel); border-top: 1px solid var(--line); }
+  td.mx-totalrow .mx-main, td.mx-totalcol .mx-main{ color: var(--gold); }
+  table.matrix tfoot td.mx-sticky{ border-top: 1px solid var(--line); }
+
+
   /* ---------- Recent entries ---------- */
   .recent table{ font-size: 13.5px; }
   .recent td{ color: var(--text-dim); font-variant-numeric: tabular-nums; }
@@ -431,19 +458,13 @@
   </div>
 
   <div class="section-block">
-    <h2 class="section">Leaderboard — by agent</h2>
+    <h2 class="section">Agent × lead source</h2>
+    <div class="matrix-note">Each cell: total sales and orders. Smaller text: share of overall sales · share of overall orders in the selected range.</div>
     <div class="tablewrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Agent</th>
-            <th class="num">Orders</th>
-            <th class="num">Total</th>
-            <th>Share</th>
-          </tr>
-        </thead>
-        <tbody id="boardBody"></tbody>
+      <table class="data-table matrix">
+        <thead id="matrixHead"></thead>
+        <tbody id="matrixBody"></tbody>
+        <tfoot id="matrixFoot"></tfoot>
       </table>
     </div>
     <div class="empty" id="boardEmpty" style="display:none;">No sales recorded in this range.</div>
@@ -533,7 +554,9 @@
     sumAvg: document.getElementById("sumAvg"),
     sumB2C: document.getElementById("sumB2C"),
     sumB2B: document.getElementById("sumB2B"),
-    boardBody: document.getElementById("boardBody"),
+    matrixHead: document.getElementById("matrixHead"),
+    matrixBody: document.getElementById("matrixBody"),
+    matrixFoot: document.getElementById("matrixFoot"),
     boardEmpty: document.getElementById("boardEmpty"),
     leadBody: document.getElementById("leadBody"),
     leadEmpty: document.getElementById("leadEmpty"),
@@ -839,6 +862,72 @@
     });
   }
 
+  function pctOf(v, t){ return t ? (v / t * 100).toFixed(1) + '%' : '0.0%'; }
+
+  function matrixCell(total, count, grandTotal, grandCount, maxCell){
+    if (!count) return '<td class="mx-cell mx-empty">—</td>';
+    var alpha = maxCell ? (0.04 + 0.2 * (total / maxCell)).toFixed(3) : 0;
+    return '<td class="mx-cell" style="background:rgba(201,162,39,' + alpha + ')">' +
+      '<div class="mx-main">' + currency.format(total) + '</div>' +
+      '<div class="mx-orders">' + plainNum.format(count) + (count === 1 ? ' order' : ' orders') + '</div>' +
+      '<div class="mx-pct">' + pctOf(total, grandTotal) + ' sales · ' + pctOf(count, grandCount) + ' orders</div>' +
+      '</td>';
+  }
+
+  function renderMatrix(rows, grandTotal){
+    var grandCount = rows.length;
+    els.matrixHead.innerHTML = '';
+    els.matrixBody.innerHTML = '';
+    els.matrixFoot.innerHTML = '';
+
+    if (!state.hasLeadSource || !rows.length){
+      els.boardEmpty.textContent = state.hasLeadSource ? 'No sales recorded in this range.' : 'No "Lead Source" column found in the sheet.';
+      els.boardEmpty.style.display = 'block';
+      return;
+    }
+    els.boardEmpty.style.display = 'none';
+
+    var agents = {}, sources = {}, maxCell = 0;
+    rows.forEach(function(r){
+      var a = agents[r.name] || (agents[r.name] = { key: r.name, total: 0, count: 0, cells: {} });
+      a.total += r.amount; a.count++;
+      var c = a.cells[r.leadSource] || (a.cells[r.leadSource] = { total: 0, count: 0 });
+      c.total += r.amount; c.count++;
+      if (c.total > maxCell) maxCell = c.total;
+      var s = sources[r.leadSource] || (sources[r.leadSource] = { key: r.leadSource, total: 0, count: 0 });
+      s.total += r.amount; s.count++;
+    });
+
+    var agentList = Object.keys(agents).map(function(k){ return agents[k]; }).sort(function(a,b){ return b.total - a.total; });
+    var sourceList = Object.keys(sources).map(function(k){ return sources[k]; }).sort(function(a,b){ return b.total - a.total; });
+
+    var h = '<tr><th class="mx-sticky">Employee</th>';
+    sourceList.forEach(function(s){ h += '<th class="num">' + escapeHtml(s.key) + '</th>'; });
+    h += '<th class="num mx-totalcol">Total</th></tr>';
+    els.matrixHead.innerHTML = h;
+
+    agentList.forEach(function(a){
+      var tr = document.createElement('tr');
+      var html = '<td class="mx-sticky name">' + escapeHtml(a.key) + '</td>';
+      sourceList.forEach(function(s){
+        var c = a.cells[s.key] || { total: 0, count: 0 };
+        html += matrixCell(c.total, c.count, grandTotal, grandCount, maxCell);
+      });
+      html += matrixCell(a.total, a.count, grandTotal, grandCount, 0).replace('class="mx-cell"', 'class="mx-cell mx-totalcol"');
+      tr.innerHTML = html;
+      els.matrixBody.appendChild(tr);
+    });
+
+    var ft = document.createElement('tr');
+    var fh = '<td class="mx-sticky name">Total</td>';
+    sourceList.forEach(function(s){
+      fh += matrixCell(s.total, s.count, grandTotal, grandCount, 0).replace('class="mx-cell"', 'class="mx-cell mx-totalrow"');
+    });
+    fh += matrixCell(grandTotal, grandCount, grandTotal, grandCount, 0).replace('class="mx-cell"', 'class="mx-cell mx-totalrow mx-totalcol"');
+    ft.innerHTML = fh;
+    els.matrixFoot.appendChild(ft);
+  }
+
   function render(){
     var filtered = getFilteredRows();
 
@@ -866,21 +955,8 @@
       els.sumB2B.textContent = '—';
     }
 
-    // leaderboard by agent
-    els.boardBody.innerHTML = '';
-    els.boardEmpty.style.display = byAgent.length ? 'none' : 'block';
-    var maxAgentTotal = byAgent.length ? byAgent[0].total : 0;
-    byAgent.forEach(function(a, i){
-      var pct = maxAgentTotal ? Math.max(2, Math.round((a.total / maxAgentTotal) * 100)) : 0;
-      var tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td class="rank">' + (i+1) + '</td>' +
-        '<td class="name">' + escapeHtml(a.key) + '</td>' +
-        '<td class="count">' + plainNum.format(a.count) + '</td>' +
-        '<td class="amount">' + currency.format(a.total) + '</td>' +
-        '<td class="barcell"><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div></td>';
-      els.boardBody.appendChild(tr);
-    });
+    // matrix: agent x lead source
+    renderMatrix(filtered, total);
 
     // by lead source
     if (state.hasLeadSource){
